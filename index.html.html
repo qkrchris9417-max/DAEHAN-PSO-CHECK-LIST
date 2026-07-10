@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>납품 품목 확인서</title>
+<style>
+  :root{
+    --ink:#1F2A33;
+    --ink-soft:#3d4a56;
+    --paper:#FAF8F3;
+    --panel:#ffffff;
+    --line:#E1DCCB;
+    --steel:#8B92A0;
+    --seal:#B23A2E;
+    --seal-soft:#f6e4e0;
+    --done:#2F6F4E;
+    --done-soft:#e3efe8;
+    --gold:#C79A3E;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:'Noto Sans KR','Malgun Gothic',sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    padding:40px 20px 80px;
+  }
+  h1,h2{font-family:'Noto Serif KR','Batang',serif;}
+  .sheet{
+    max-width:900px; margin:0 auto;
+    background:var(--panel);
+    border:1px solid var(--line);
+    box-shadow:0 2px 0 var(--line);
+  }
+  .sheet-head{
+    padding:36px 40px 28px;
+    border-bottom:2px solid var(--ink);
+    display:flex; justify-content:space-between; align-items:flex-end; gap:20px;
+    position:relative;
+  }
+  .sheet-head h1{font-size:26px; letter-spacing:0.02em;}
+  .sheet-head .sub{font-size:12.5px; color:var(--steel); margin-top:6px; letter-spacing:0.05em;}
+  .doc-no{font-size:12px; color:var(--steel); text-align:right;}
+  .doc-no b{color:var(--ink); display:block; font-size:14px; margin-bottom:2px;}
+
+  .meta{
+    display:grid; grid-template-columns:repeat(4,1fr);
+    border-bottom:1px solid var(--line);
+  }
+  .meta div{
+    padding:16px 20px; border-right:1px solid var(--line);
+  }
+  .meta div:last-child{border-right:none;}
+  .meta label{
+    display:block; font-size:11px; color:var(--steel); letter-spacing:0.06em; margin-bottom:6px;
+  }
+  .meta input{
+    border:none; outline:none; background:transparent; font-size:14.5px; font-weight:600; color:var(--ink); width:100%;
+    border-bottom:1px solid transparent; padding-bottom:2px;
+  }
+  .meta input:focus{border-bottom:1px solid var(--seal);}
+
+  .progress-bar{
+    height:6px; background:var(--line); position:relative;
+  }
+  .progress-fill{
+    height:100%; background:var(--done); width:0%; transition:width .4s ease;
+  }
+
+  .progress-label{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 40px; font-size:13px; color:var(--ink-soft); border-bottom:1px solid var(--line);
+  }
+  .progress-label b{color:var(--seal); font-size:16px;}
+  .progress-label b.all-done{color:var(--done);}
+
+  .scroll-hint{
+    font-size:11px; color:var(--steel); text-align:center; padding:10px 0 4px; letter-spacing:0.02em;
+  }
+  .table-scroll{
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
+    border-bottom:1px solid var(--line);
+  }
+  .table-scroll::-webkit-scrollbar{ height:8px; }
+  .table-scroll::-webkit-scrollbar-thumb{ background:var(--line); border-radius:4px; }
+  table{width:1020px; border-collapse:collapse;}
+  thead th{
+    text-align:left; font-size:12px; color:var(--steel); letter-spacing:0.04em; font-weight:600;
+    padding:12px 14px; border-bottom:1px solid var(--line); background:#faf9f5;
+  }
+  th.center, td.center{text-align:center;}
+  tbody td{
+    padding:10px 14px; border-bottom:1px solid var(--line); font-size:14px; vertical-align:middle;
+  }
+  tbody tr.checked td{ background: var(--done-soft); }
+  tbody input[type="text"], tbody input[type="number"]{
+    border:none; background:transparent; outline:none; font-size:14px; width:100%; padding:4px 0;
+    border-bottom:1px dashed transparent;
+  }
+  tbody input[type="text"]:focus, tbody input[type="number"]:focus{border-bottom:1px dashed var(--seal);}
+  tbody textarea.item-name, tbody textarea.item-spec{
+    border:none; background:transparent; outline:none; font-size:14px; width:100%; padding:4px 0;
+    border-bottom:1px dashed transparent; resize:none; font-family:inherit; line-height:1.5;
+    height:48px; overflow-y:auto;
+  }
+  tbody textarea.item-name:focus, tbody textarea.item-spec:focus{border-bottom:1px dashed var(--seal);}
+  .item-check{
+    width:22px; height:22px; cursor:pointer; accent-color:var(--done);
+  }
+  .row-status{
+    font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:20px; display:inline-block;
+    background:var(--seal-soft); color:var(--seal);
+  }
+  tr.checked .row-status{ background:var(--done-soft); color:var(--done); }
+  .row-actions{ display:flex; gap:6px; align-items:center; justify-content:center; }
+  .insert-btn{
+    border:none; background:transparent; color:var(--steel); cursor:pointer; font-size:15px; line-height:1;
+    width:20px; height:20px; border-radius:3px;
+  }
+  .insert-btn:hover{ color:var(--done); background:var(--done-soft); }
+  .locked .insert-btn{ opacity:0.25; pointer-events:none; }
+  .del-btn{
+    border:none; background:transparent; color:var(--steel); cursor:pointer; font-size:16px; line-height:1;
+  }
+  .del-btn:hover{color:var(--seal);}
+
+  .table-foot{
+    padding:16px 40px; border-bottom:1px solid var(--line); display:flex; gap:10px;
+  }
+  .add-row-btn{
+    border:1px dashed var(--steel); background:transparent; color:var(--ink-soft);
+    padding:10px 18px; font-size:13px; cursor:pointer; flex:1; border-radius:2px; transition:.2s;
+  }
+  .add-row-btn:hover{border-color:var(--seal); color:var(--seal);}
+
+  .sign-area{
+    display:grid; grid-template-columns:1fr 1fr; gap:0;
+    border-bottom:1px solid var(--line);
+  }
+  .sign-box{
+    padding:24px 40px; border-right:1px solid var(--line);
+  }
+  .sign-box:last-child{border-right:none;}
+  .sign-box label{font-size:11.5px; color:var(--steel); letter-spacing:0.05em; display:block; margin-bottom:10px;}
+  .sign-box input{
+    border:none; border-bottom:1px solid var(--line); outline:none; background:transparent;
+    font-size:14.5px; font-weight:600; width:100%; padding:6px 0;
+  }
+  .sign-box input:focus{border-bottom:1px solid var(--seal);}
+
+  .footer-actions{
+    padding:24px 40px 40px; display:flex; justify-content:space-between; align-items:center; gap:16px;
+  }
+  .note{font-size:12px; color:var(--steel);}
+  .save-status{font-size:11.5px; color:var(--steel); display:flex; align-items:center; gap:6px;}
+  .save-status .dot{width:6px; height:6px; border-radius:50%; background:var(--steel);}
+  .save-status.saved .dot{background:var(--done);}
+  .save-status.saving .dot{background:var(--gold);}
+  .lock-screen{
+    position:fixed; inset:0; background:var(--ink); z-index:400;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .lock-box{
+    background:var(--panel); padding:44px 44px 36px; width:100%; max-width:360px; text-align:center;
+    border-radius:4px;
+  }
+  .lock-box .mark{
+    width:48px; height:48px; border:2px solid var(--seal); border-radius:50%; color:var(--seal);
+    display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:20px;
+  }
+  .lock-box h2{font-size:18px; margin-bottom:8px;}
+  .lock-box p{font-size:12.5px; color:var(--steel); margin-bottom:22px;}
+  .lock-box input{
+    width:100%; padding:12px 14px; font-size:15px; border:1px solid var(--line); outline:none;
+    text-align:center; letter-spacing:0.1em; margin-bottom:12px; border-radius:2px;
+  }
+  .lock-box input:focus{border-color:var(--seal);}
+  .lock-box button{
+    width:100%; padding:12px; font-size:14px; font-weight:600; border:1px solid var(--ink); background:var(--ink);
+    color:#fff; border-radius:2px; cursor:pointer;
+  }
+  .lock-box button:hover{opacity:0.85;}
+  .lock-error{font-size:12px; color:var(--seal); margin-top:10px; height:14px;}
+  .sheet-container{ visibility:hidden; }
+  .loading-mask{
+    position:fixed; inset:0; background:var(--paper); z-index:300;
+    display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--steel);
+  }
+  .reset-btn{
+    border:none; background:transparent; color:var(--steel); font-size:11.5px; text-decoration:underline; cursor:pointer;
+  }
+  .reset-btn:hover{color:var(--seal);}
+  #editToggleBtn.active{background:var(--seal); border-color:var(--seal);}
+  .locked input[type="text"], .locked input[type="number"], .locked input[type="date"], .locked textarea.item-name, .locked textarea.item-spec{
+    color:var(--ink-soft); cursor:default; border-bottom-color:transparent !important;
+  }
+  .locked .add-row-btn{ opacity:0.4; pointer-events:none; }
+  .locked .del-btn{ opacity:0.25; pointer-events:none; }
+  .edit-hint{
+    display:none; font-size:11.5px; color:var(--gold); padding:10px 40px 0; letter-spacing:0.02em;
+  }
+  .edit-mode .edit-hint{ display:block; }
+  .edit-mode input[type="text"]:not(:disabled), .edit-mode input[type="number"]:not(:disabled), .edit-mode input[type="date"]:not(:disabled){
+    background:#fffdf5;
+  }
+  .actions{display:flex; gap:10px;}
+  button.btn{
+    padding:12px 22px; font-size:13.5px; font-weight:600; border-radius:2px; cursor:pointer; border:1px solid var(--ink);
+    background:var(--ink); color:#fff; transition:.2s;
+  }
+  button.btn.ghost{background:transparent; color:var(--ink);}
+  button.btn.ghost:hover{background:var(--ink); color:#fff;}
+  button.btn:hover{opacity:0.85;}
+
+  .stamp-overlay{
+    position:fixed; inset:0; background:rgba(16,24,32,0.55);
+    display:flex; align-items:center; justify-content:center; z-index:200;
+    opacity:0; pointer-events:none; transition:opacity .3s ease;
+  }
+  .stamp-overlay.show{opacity:1; pointer-events:auto;}
+  .stamp-card{
+    background:var(--panel); padding:48px 60px; text-align:center; border-radius:4px;
+    transform:scale(0.85); transition:transform .3s ease;
+  }
+  .stamp-overlay.show .stamp-card{transform:scale(1);}
+  .stamp-circle{
+    width:130px; height:130px; border-radius:50%; border:3px solid var(--seal); color:var(--seal);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; margin:0 auto 20px;
+    transform:rotate(-8deg);
+  }
+  .stamp-circle .big{font-family:'Noto Serif KR',serif; font-size:28px; font-weight:900;}
+  .stamp-circle .small{font-size:10px; letter-spacing:0.2em; margin-top:4px;}
+  .stamp-card h2{font-size:19px; margin-bottom:8px;}
+  .stamp-card p{font-size:13px; color:var(--steel); margin-bottom:24px;}
+
+  @media print{
+    body{padding:0; background:#fff;}
+    .sheet{border:none; box-shadow:none; max-width:100%;}
+    .add-row-btn, .footer-actions, .del-btn, .insert-btn, .stamp-overlay, .scroll-hint{display:none !important;}
+    .item-check{-webkit-print-color-adjust:exact;}
+    .table-scroll{overflow:visible !important;}
+    table{width:100% !important;}
+  }
+  @media(max-width:760px){
+    .meta{grid-template-columns:1fr 1fr;}
+    .sign-area{grid-template-columns:1fr;}
+    .sheet-head{flex-direction:column; align-items:flex-start;}
+    /* 테이블은 이제 항상 .table-scroll로 가로 스크롤 처리됨 */
+  }
+</style>
+</head>
+
+<!--
+  ══════════════════════════════════════════════════════════════
+  Firebase 설정 안내
+  1. https://console.firebase.google.com 에서 프로젝트 생성
+  2. "웹 앱 추가" 후 나오는 firebaseConfig 값을 아래에 그대로 붙여넣기
+  3. Realtime Database 만들기 (테스트 모드로 시작해도 됨)
+  ══════════════════════════════════════════════════════════════
+-->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBK6nee3aAKdRIEO3K0BUEJlixxlFQVPcg",
+    authDomain: "daehan-pso-checklist.firebaseapp.com",
+    databaseURL: "https://daehan-pso-checklist-default-rtdb.firebaseio.com",
+    projectId: "daehan-pso-checklist",
+    storageBucket: "daehan-pso-checklist.firebasestorage.app",
+    messagingSenderId: "747135090162",
+    appId: "1:747135090162:web:ebb41485be871ad8803f6b"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const DB_PATH = 'delivery-checklist/main';
+</script>
+<body>
+
+<div class="lock-screen" id="lockScreen">
+  <div class="lock-box">
+    <div class="mark">🔒</div>
+    <h2>납품 품목 확인서</h2>
+    <p>공유된 문서입니다. 암호를 입력해 주세요.</p>
+    <input type="password" id="lockInput" placeholder="암호 입력" autocomplete="off">
+    <button id="lockSubmit">확인</button>
+    <div class="lock-error" id="lockError"></div>
+  </div>
+</div>
+
+<div class="sheet-container" id="sheetContainer">
+<div class="sheet" id="sheetEl">
+  <div class="sheet-head">
+    <div>
+      <h1>납품 품목 확인서</h1>
+      <div class="sub">DELIVERY ITEM CHECKLIST</div>
+    </div>
+    <div class="doc-no">
+      <b id="docNo">DJ-2026-0001</b>
+      작성일 <span id="todayDate"></span>
+    </div>
+  </div>
+
+  <div class="meta">
+    <div>
+      <label>공급업체 (납품처)</label>
+      <input type="text" id="supplierName" value="대한산업" placeholder="공급업체명">
+    </div>
+    <div>
+      <label>인수업체 (수령처)</label>
+      <input type="text" id="receiverName" value="피에스오산업" placeholder="인수업체명을 입력하세요">
+    </div>
+    <div>
+      <label>공급업체 담당자</label>
+      <input type="text" id="supplierManager" value="남승구 과장" placeholder="담당자명">
+    </div>
+    <div>
+      <label>인수업체 담당자</label>
+      <input type="text" id="receiverManager" value="박건규 대리" placeholder="담당자명">
+    </div>
+  </div>
+
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="progress-label">
+    <span>품목 확인 진행률</span>
+    <span><b id="progressText" class="">0 / 0</b> 완료</span>
+  </div>
+  <div class="edit-hint" id="editHint">✎ 수정 모드입니다 — 내용을 편집한 뒤 "완료" 버튼을 눌러 잠가주세요.</div>
+  <div class="scroll-hint">← 표를 옆으로 드래그하면 전체 항목이 보여요 →</div>
+
+  <div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th class="center" style="width:44px;">확인</th>
+        <th style="width:100px;">발주번호</th>
+        <th style="width:280px;">품목명</th>
+        <th style="width:170px;">규격</th>
+        <th class="center" style="width:60px;">수량</th>
+        <th style="width:120px;">납품예상일자</th>
+        <th style="width:120px;">인도 장소</th>
+        <th class="center" style="width:70px;">상태</th>
+        <th style="width:56px;"></th>
+      </tr>
+    </thead>
+    <tbody id="itemBody"></tbody>
+  </table>
+  </div>
+
+  <div class="table-foot">
+    <button class="add-row-btn" id="addTopBtn">+ 맨 위에 추가</button>
+    <button class="add-row-btn" id="addRowBtn">+ 맨 아래에 추가</button>
+  </div>
+
+  <div class="sign-area">
+    <div class="sign-box">
+      <label>공급업체 확인 (서명)</label>
+      <input type="text" id="supplierSign" value="남승구" placeholder="이름을 입력하세요">
+    </div>
+    <div class="sign-box">
+      <label>인수업체 확인 (서명)</label>
+      <input type="text" id="receiverSign" value="박건규" placeholder="이름을 입력하세요">
+    </div>
+  </div>
+
+  <div class="footer-actions">
+    <div class="save-status" id="saveStatus"><span class="dot"></span><span id="saveStatusText">불러오는 중...</span> · 이 링크로 접속한 모두에게 공유되는 내용입니다</div>
+    <div class="actions">
+      <button class="reset-btn" id="resetBtn">전체 초기화</button>
+      <button class="btn ghost" id="printBtn">인쇄 / PDF 저장</button>
+      <button class="btn" id="editToggleBtn">수정</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="loading-mask" id="loadingMask">불러오는 중...</div>
+
+<div class="stamp-overlay" id="stampOverlay">
+  <div class="stamp-card">
+    <div class="stamp-circle">
+      <span class="big">完了</span>
+      <span class="small">CONFIRMED</span>
+    </div>
+    <h2>모든 품목 납품 완료</h2>
+    <p>등록된 전체 품목의 확인이 완료되었습니다.</p>
+    <button class="btn ghost" id="closeStampBtn">닫기</button>
+  </div>
+</div>
+
+<script>
+  const itemBody = document.getElementById('itemBody');
+  const progressFill = document.getElementById('progressFill');
+  const progressText = document.getElementById('progressText');
+  const stampOverlay = document.getElementById('stampOverlay');
+  const loadingMask = document.getElementById('loadingMask');
+  const saveStatus = document.getElementById('saveStatus');
+  const saveStatusText = document.getElementById('saveStatusText');
+  // DB_PATH는 상단 Firebase 설정 스크립트에서 정의됨
+
+  document.getElementById('todayDate').textContent =
+    new Date().toLocaleDateString('ko-KR', {year:'numeric', month:'2-digit', day:'2-digit'});
+
+  function makeRow(orderNo, name, spec, qty, date, note, checked, insertBeforeEl){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="center"><input type="checkbox" class="item-check" ${checked ? 'checked' : ''}></td>
+      <td><input type="text" value="${escapeHtml(orderNo || '')}" placeholder="발주번호"></td>
+      <td><textarea class="item-name" rows="2" placeholder="품목명">${escapeHtml(name || '')}</textarea></td>
+      <td><textarea class="item-spec" rows="2" placeholder="규격">${escapeHtml(spec || '')}</textarea></td>
+      <td class="center"><input type="number" value="${qty ?? ''}" min="0" style="text-align:center;"></td>
+      <td><input type="date" class="item-date" value="${date || ''}"></td>
+      <td><input type="text" value="${escapeHtml(note || '')}" placeholder="인도 장소"></td>
+      <td class="center"><span class="row-status">${checked ? '입고' : '미입고'}</span></td>
+      <td class="center row-actions">
+        <button class="insert-btn" title="이 아래에 품목 추가">＋</button>
+        <button class="del-btn" title="삭제">✕</button>
+      </td>
+    `;
+    if(checked) tr.classList.add('checked');
+    if(insertBeforeEl){
+      itemBody.insertBefore(tr, insertBeforeEl);
+    } else {
+      itemBody.appendChild(tr);
+    }
+
+    const checkbox = tr.querySelector('.item-check');
+    const status = tr.querySelector('.row-status');
+    checkbox.addEventListener('change', ()=>{
+      if(checkbox.checked){
+        tr.classList.add('checked');
+        status.textContent = '입고';
+      } else {
+        tr.classList.remove('checked');
+        status.textContent = '미입고';
+      }
+      updateProgress();
+      scheduleSave();
+    });
+    tr.querySelectorAll('input[type="text"], input[type="number"], input[type="date"], .item-name, .item-spec').forEach(inp=>{
+      inp.addEventListener('input', scheduleSave);
+      inp.addEventListener('change', scheduleSave);
+    });
+    tr.querySelector('.del-btn').addEventListener('click', ()=>{
+      tr.remove();
+      updateProgress();
+      scheduleSave();
+    });
+    tr.querySelector('.insert-btn').addEventListener('click', ()=>{
+      makeRow('', '', '', '', '', '', false, tr.nextSibling);
+      updateProgress();
+      scheduleSave();
+    });
+    return tr;
+  }
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function updateProgress(){
+    const rows = itemBody.querySelectorAll('tr');
+    const total = rows.length;
+    const done = itemBody.querySelectorAll('.item-check:checked').length;
+    const pct = total === 0 ? 0 : Math.round((done/total)*100);
+    progressFill.style.width = pct + '%';
+    progressText.textContent = `${done} / ${total}`;
+    progressText.classList.toggle('all-done', total > 0 && done === total);
+    if(total > 0 && done === total){
+      showStamp();
+    }
+  }
+
+  function showStamp(){
+    stampOverlay.classList.add('show');
+  }
+  document.getElementById('closeStampBtn').addEventListener('click', ()=>{
+    stampOverlay.classList.remove('show');
+  });
+
+  document.getElementById('addRowBtn').addEventListener('click', ()=>{
+    makeRow('', '', '', '', '', '', false);
+    scheduleSave();
+  });
+
+  document.getElementById('addTopBtn').addEventListener('click', ()=>{
+    makeRow('', '', '', '', '', '', false, itemBody.firstChild);
+    updateProgress();
+    scheduleSave();
+  });
+
+  // ── 수정 모드 잠금/해제 ──
+  const sheetEl = document.getElementById('sheetEl');
+  const editToggleBtn = document.getElementById('editToggleBtn');
+  let editMode = false;
+
+  function applyFieldLock(){
+    const isLocked = !editMode;
+    document.querySelectorAll('#sheetEl input[type="text"], #sheetEl input[type="number"], #sheetEl input[type="date"], #sheetEl textarea.item-name, #sheetEl textarea.item-spec')
+      .forEach(inp => { inp.disabled = isLocked; });
+  }
+
+  function setEditMode(on){
+    editMode = on;
+    sheetEl.classList.toggle('locked', !on);
+    sheetEl.classList.toggle('edit-mode', on);
+    editToggleBtn.textContent = on ? '완료' : '수정';
+    editToggleBtn.classList.toggle('active', on);
+    applyFieldLock();
+  }
+
+  editToggleBtn.addEventListener('click', ()=>{
+    setEditMode(!editMode);
+  });
+
+  document.getElementById('printBtn').addEventListener('click', ()=> window.print());
+
+  document.getElementById('resetBtn').addEventListener('click', async ()=>{
+    if(!confirm('모든 입력 내용을 초기화할까요? 저장된 데이터도 삭제됩니다.')) return;
+    itemBody.innerHTML = '';
+    document.getElementById('supplierName').value = '대한산업';
+    document.getElementById('receiverName').value = '피에스오산업';
+    document.getElementById('supplierManager').value = '남승구 과장';
+    document.getElementById('receiverManager').value = '박건규 대리';
+    document.getElementById('supplierSign').value = '남승구';
+    document.getElementById('receiverSign').value = '박건규';
+    makeRow('', '', '', '', '', '', false);
+    updateProgress();
+    setEditMode(true);
+    try{ await db.ref(DB_PATH).remove(); }catch(e){}
+    scheduleSave();
+  });
+
+  // ── 저장 / 불러오기 ──
+  function collectData(){
+    const items = Array.from(itemBody.querySelectorAll('tr')).map(tr=>{
+      const textInputs = tr.querySelectorAll('input[type="text"]');
+      const qtyInput = tr.querySelector('input[type="number"]');
+      const dateInput = tr.querySelector('input[type="date"]');
+      const nameInput = tr.querySelector('.item-name');
+      const specInput = tr.querySelector('.item-spec');
+      return {
+        orderNo: textInputs[0]?.value || '',
+        name: nameInput?.value || '',
+        spec: specInput?.value || '',
+        qty: qtyInput?.value || '',
+        date: dateInput?.value || '',
+        note: textInputs[1]?.value || '',
+        checked: tr.querySelector('.item-check').checked
+      };
+    });
+    return {
+      supplierName: document.getElementById('supplierName').value,
+      receiverName: document.getElementById('receiverName').value,
+      supplierManager: document.getElementById('supplierManager').value,
+      receiverManager: document.getElementById('receiverManager').value,
+      supplierSign: document.getElementById('supplierSign').value,
+      receiverSign: document.getElementById('receiverSign').value,
+      items
+    };
+  }
+
+  let saveTimer = null;
+  function scheduleSave(){
+    saveStatus.classList.remove('saved');
+    saveStatus.classList.add('saving');
+    saveStatusText.textContent = '저장 중...';
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(doSave, 500);
+  }
+
+  async function doSave(){
+    try{
+      const data = collectData();
+      await db.ref(DB_PATH).set(data);
+      saveStatus.classList.remove('saving');
+      saveStatus.classList.add('saved');
+      saveStatusText.textContent = '저장됨 · 다음에 열어도 그대로 유지됩니다';
+    }catch(e){
+      saveStatus.classList.remove('saving');
+      saveStatusText.textContent = '저장 실패 (Firebase 설정을 확인해 주세요)';
+      console.error(e);
+    }
+  }
+
+  async function loadData(){
+    try{
+      const snapshot = await db.ref(DB_PATH).once('value');
+      const data = snapshot.val();
+      if(data){
+        document.getElementById('supplierName').value = data.supplierName || '대한산업';
+        document.getElementById('receiverName').value = data.receiverName || '피에스오산업';
+        document.getElementById('supplierManager').value = data.supplierManager || '남승구 과장';
+        document.getElementById('receiverManager').value = data.receiverManager || '박건규 대리';
+        document.getElementById('supplierSign').value = data.supplierSign || '';
+        document.getElementById('receiverSign').value = data.receiverSign || '';
+        itemBody.innerHTML = '';
+        if(data.items && data.items.length){
+          data.items.forEach(it=> makeRow(it.orderNo, it.name, it.spec, it.qty, it.date, it.note, it.checked));
+        } else {
+          makeRow('', '', '', '', '', '', false);
+        }
+        saveStatus.classList.add('saved');
+        saveStatusText.textContent = '저장된 내용을 불러왔습니다';
+      } else {
+        throw new Error('no data');
+      }
+    }catch(e){
+      // 저장된 데이터가 없으면 예시 품목으로 시작
+      const today = new Date().toISOString().slice(0,10);
+      makeRow('PO-2026-001', '산업용 볼트 세트', 'M10 x 50mm', 200, today, '서울 물류센터', false);
+      makeRow('PO-2026-002', '스테인리스 파이프', '2인치 x 3m', 40, today, '인천 공장', false);
+      makeRow('PO-2026-003', '안전 보호구 세트', 'L 사이즈', 30, today, '평택 창고', false);
+      makeRow('PO-2026-004', '전기 배선 케이블', '4C x 2.5sq', 150, today, '본사 창고', false);
+      saveStatusText.textContent = '새 확인서를 시작합니다';
+    }
+    updateProgress();
+    setEditMode(false);
+    loadingMask.style.display = 'none';
+  }
+
+  // 상단 입력 필드 변경 시 저장
+  ['supplierName','receiverName','supplierManager','receiverManager','supplierSign','receiverSign'].forEach(id=>{
+    document.getElementById(id).addEventListener('input', scheduleSave);
+    document.getElementById(id).addEventListener('change', scheduleSave);
+  });
+
+  // ── 암호 잠금 ──
+  const ACCESS_PASSWORD = "9381"; // 이 값을 원하는 암호로 바꾸세요
+  const lockScreen = document.getElementById('lockScreen');
+  const lockInput = document.getElementById('lockInput');
+  const lockError = document.getElementById('lockError');
+  const sheetContainer = document.getElementById('sheetContainer');
+
+  function tryUnlock(){
+    if(lockInput.value === ACCESS_PASSWORD){
+      lockScreen.style.display = 'none';
+      sheetContainer.style.visibility = 'visible';
+      loadingMask.style.display = 'flex';
+      loadData();
+    } else {
+      lockError.textContent = '암호가 올바르지 않습니다.';
+      lockInput.value = '';
+      lockInput.focus();
+    }
+  }
+  document.getElementById('lockSubmit').addEventListener('click', tryUnlock);
+  lockInput.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter') tryUnlock();
+  });
+  lockInput.focus();
+</script>
+
+</body>
+</html>
