@@ -125,11 +125,11 @@
   .del-btn:hover{color:var(--seal);}
 
   .table-foot{
-    padding:16px 40px; border-bottom:1px solid var(--line);
+    padding:16px 40px; border-bottom:1px solid var(--line); display:flex; gap:10px;
   }
   .add-row-btn{
     border:1px dashed var(--steel); background:transparent; color:var(--ink-soft);
-    padding:10px 18px; font-size:13px; cursor:pointer; width:100%; border-radius:2px; transition:.2s;
+    padding:10px 18px; font-size:13px; cursor:pointer; flex:1; border-radius:2px; transition:.2s;
   }
   .add-row-btn:hover{border-color:var(--seal); color:var(--seal);}
 
@@ -347,7 +347,8 @@
   </div>
 
   <div class="table-foot">
-    <button class="add-row-btn" id="addRowBtn">+ 품목 추가</button>
+    <button class="add-row-btn" id="addTopBtn">+ 맨 위에 추가</button>
+    <button class="add-row-btn" id="addRowBtn">+ 맨 아래에 추가</button>
   </div>
 
   <div class="sign-area">
@@ -478,6 +479,12 @@
 
   document.getElementById('addRowBtn').addEventListener('click', ()=>{
     makeRow('', '', '', '', '', '', false);
+    scheduleSave();
+  });
+
+  document.getElementById('addTopBtn').addEventListener('click', ()=>{
+    makeRow('', '', '', '', '', '', false, itemBody.firstChild);
+    updateProgress();
     scheduleSave();
   });
 
