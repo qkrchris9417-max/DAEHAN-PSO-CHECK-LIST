@@ -74,7 +74,16 @@
   .progress-label b{color:var(--seal); font-size:16px;}
   .progress-label b.all-done{color:var(--done);}
 
-  table{width:100%; border-collapse:collapse;}
+  .scroll-hint{
+    font-size:11px; color:var(--steel); text-align:center; padding:10px 0 4px; letter-spacing:0.02em;
+  }
+  .table-scroll{
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
+    border-bottom:1px solid var(--line);
+  }
+  .table-scroll::-webkit-scrollbar{ height:8px; }
+  .table-scroll::-webkit-scrollbar-thumb{ background:var(--line); border-radius:4px; }
+  table{width:1020px; border-collapse:collapse;}
   thead th{
     text-align:left; font-size:12px; color:var(--steel); letter-spacing:0.04em; font-weight:600;
     padding:12px 14px; border-bottom:1px solid var(--line); background:#faf9f5;
@@ -89,6 +98,12 @@
     border-bottom:1px dashed transparent;
   }
   tbody input[type="text"]:focus, tbody input[type="number"]:focus{border-bottom:1px dashed var(--seal);}
+  tbody textarea.item-name, tbody textarea.item-spec{
+    border:none; background:transparent; outline:none; font-size:14px; width:100%; padding:4px 0;
+    border-bottom:1px dashed transparent; resize:none; font-family:inherit; line-height:1.5;
+    height:48px; overflow-y:auto;
+  }
+  tbody textarea.item-name:focus, tbody textarea.item-spec:focus{border-bottom:1px dashed var(--seal);}
   .item-check{
     width:22px; height:22px; cursor:pointer; accent-color:var(--done);
   }
@@ -176,7 +191,7 @@
   }
   .reset-btn:hover{color:var(--seal);}
   #editToggleBtn.active{background:var(--seal); border-color:var(--seal);}
-  .locked input[type="text"], .locked input[type="number"], .locked input[type="date"]{
+  .locked input[type="text"], .locked input[type="number"], .locked input[type="date"], .locked textarea.item-name, .locked textarea.item-spec{
     color:var(--ink-soft); cursor:default; border-bottom-color:transparent !important;
   }
   .locked .add-row-btn{ opacity:0.4; pointer-events:none; }
@@ -221,14 +236,16 @@
   @media print{
     body{padding:0; background:#fff;}
     .sheet{border:none; box-shadow:none; max-width:100%;}
-    .add-row-btn, .footer-actions, .del-btn, .insert-btn, .stamp-overlay{display:none !important;}
+    .add-row-btn, .footer-actions, .del-btn, .insert-btn, .stamp-overlay, .scroll-hint{display:none !important;}
     .item-check{-webkit-print-color-adjust:exact;}
+    .table-scroll{overflow:visible !important;}
+    table{width:100% !important;}
   }
   @media(max-width:760px){
     .meta{grid-template-columns:1fr 1fr;}
     .sign-area{grid-template-columns:1fr;}
     .sheet-head{flex-direction:column; align-items:flex-start;}
-    table{display:block; overflow-x:auto;}
+    /* 테이블은 이제 항상 .table-scroll로 가로 스크롤 처리됨 */
   }
 </style>
 </head>
@@ -308,23 +325,26 @@
     <span><b id="progressText" class="">0 / 0</b> 완료</span>
   </div>
   <div class="edit-hint" id="editHint">✎ 수정 모드입니다 — 내용을 편집한 뒤 "완료" 버튼을 눌러 잠가주세요.</div>
+  <div class="scroll-hint">← 표를 옆으로 드래그하면 전체 항목이 보여요 →</div>
 
+  <div class="table-scroll">
   <table>
     <thead>
       <tr>
         <th class="center" style="width:44px;">확인</th>
-        <th style="width:110px;">발주번호</th>
-        <th>품목명</th>
-        <th style="width:200px;">규격</th>
+        <th style="width:100px;">발주번호</th>
+        <th style="width:280px;">품목명</th>
+        <th style="width:170px;">규격</th>
         <th class="center" style="width:60px;">수량</th>
-        <th style="width:130px;">납품예상일자</th>
-        <th style="width:130px;">인도 장소</th>
-        <th class="center" style="width:80px;">상태</th>
+        <th style="width:120px;">납품예상일자</th>
+        <th style="width:120px;">인도 장소</th>
+        <th class="center" style="width:70px;">상태</th>
         <th style="width:56px;"></th>
       </tr>
     </thead>
     <tbody id="itemBody"></tbody>
   </table>
+  </div>
 
   <div class="table-foot">
     <button class="add-row-btn" id="addRowBtn">+ 품목 추가</button>
@@ -384,8 +404,8 @@
     tr.innerHTML = `
       <td class="center"><input type="checkbox" class="item-check" ${checked ? 'checked' : ''}></td>
       <td><input type="text" value="${escapeHtml(orderNo || '')}" placeholder="발주번호"></td>
-      <td><input type="text" value="${escapeHtml(name || '')}" placeholder="품목명"></td>
-      <td><input type="text" value="${escapeHtml(spec || '')}" placeholder="규격"></td>
+      <td><textarea class="item-name" rows="2" placeholder="품목명">${escapeHtml(name || '')}</textarea></td>
+      <td><textarea class="item-spec" rows="2" placeholder="규격">${escapeHtml(spec || '')}</textarea></td>
       <td class="center"><input type="number" value="${qty ?? ''}" min="0" style="text-align:center;"></td>
       <td><input type="date" class="item-date" value="${date || ''}"></td>
       <td><input type="text" value="${escapeHtml(note || '')}" placeholder="인도 장소"></td>
@@ -415,7 +435,7 @@
       updateProgress();
       scheduleSave();
     });
-    tr.querySelectorAll('input[type="text"], input[type="number"], input[type="date"]').forEach(inp=>{
+    tr.querySelectorAll('input[type="text"], input[type="number"], input[type="date"], .item-name, .item-spec').forEach(inp=>{
       inp.addEventListener('input', scheduleSave);
       inp.addEventListener('change', scheduleSave);
     });
@@ -468,7 +488,7 @@
 
   function applyFieldLock(){
     const isLocked = !editMode;
-    document.querySelectorAll('#sheetEl input[type="text"], #sheetEl input[type="number"], #sheetEl input[type="date"]')
+    document.querySelectorAll('#sheetEl input[type="text"], #sheetEl input[type="number"], #sheetEl input[type="date"], #sheetEl textarea.item-name, #sheetEl textarea.item-spec')
       .forEach(inp => { inp.disabled = isLocked; });
   }
 
@@ -509,13 +529,15 @@
       const textInputs = tr.querySelectorAll('input[type="text"]');
       const qtyInput = tr.querySelector('input[type="number"]');
       const dateInput = tr.querySelector('input[type="date"]');
+      const nameInput = tr.querySelector('.item-name');
+      const specInput = tr.querySelector('.item-spec');
       return {
         orderNo: textInputs[0]?.value || '',
-        name: textInputs[1]?.value || '',
-        spec: textInputs[2]?.value || '',
+        name: nameInput?.value || '',
+        spec: specInput?.value || '',
         qty: qtyInput?.value || '',
         date: dateInput?.value || '',
-        note: textInputs[3]?.value || '',
+        note: textInputs[1]?.value || '',
         checked: tr.querySelector('.item-check').checked
       };
     });
