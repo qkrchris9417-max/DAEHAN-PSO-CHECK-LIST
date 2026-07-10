@@ -97,6 +97,13 @@
     background:var(--seal-soft); color:var(--seal);
   }
   tr.checked .row-status{ background:var(--done-soft); color:var(--done); }
+  .row-actions{ display:flex; gap:6px; align-items:center; justify-content:center; }
+  .insert-btn{
+    border:none; background:transparent; color:var(--steel); cursor:pointer; font-size:15px; line-height:1;
+    width:20px; height:20px; border-radius:3px;
+  }
+  .insert-btn:hover{ color:var(--done); background:var(--done-soft); }
+  .locked .insert-btn{ opacity:0.25; pointer-events:none; }
   .del-btn{
     border:none; background:transparent; color:var(--steel); cursor:pointer; font-size:16px; line-height:1;
   }
@@ -214,7 +221,7 @@
   @media print{
     body{padding:0; background:#fff;}
     .sheet{border:none; box-shadow:none; max-width:100%;}
-    .add-row-btn, .footer-actions, .del-btn, .stamp-overlay{display:none !important;}
+    .add-row-btn, .footer-actions, .del-btn, .insert-btn, .stamp-overlay{display:none !important;}
     .item-check{-webkit-print-color-adjust:exact;}
   }
   @media(max-width:760px){
@@ -313,7 +320,7 @@
         <th style="width:130px;">납품예상일자</th>
         <th style="width:130px;">인도 장소</th>
         <th class="center" style="width:80px;">상태</th>
-        <th style="width:36px;"></th>
+        <th style="width:56px;"></th>
       </tr>
     </thead>
     <tbody id="itemBody"></tbody>
@@ -372,7 +379,7 @@
   document.getElementById('todayDate').textContent =
     new Date().toLocaleDateString('ko-KR', {year:'numeric', month:'2-digit', day:'2-digit'});
 
-  function makeRow(orderNo, name, spec, qty, date, note, checked){
+  function makeRow(orderNo, name, spec, qty, date, note, checked, insertBeforeEl){
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="center"><input type="checkbox" class="item-check" ${checked ? 'checked' : ''}></td>
@@ -383,10 +390,17 @@
       <td><input type="date" class="item-date" value="${date || ''}"></td>
       <td><input type="text" value="${escapeHtml(note || '')}" placeholder="인도 장소"></td>
       <td class="center"><span class="row-status">${checked ? '입고' : '미입고'}</span></td>
-      <td class="center"><button class="del-btn" title="삭제">✕</button></td>
+      <td class="center row-actions">
+        <button class="insert-btn" title="이 아래에 품목 추가">＋</button>
+        <button class="del-btn" title="삭제">✕</button>
+      </td>
     `;
     if(checked) tr.classList.add('checked');
-    itemBody.appendChild(tr);
+    if(insertBeforeEl){
+      itemBody.insertBefore(tr, insertBeforeEl);
+    } else {
+      itemBody.appendChild(tr);
+    }
 
     const checkbox = tr.querySelector('.item-check');
     const status = tr.querySelector('.row-status');
@@ -410,6 +424,12 @@
       updateProgress();
       scheduleSave();
     });
+    tr.querySelector('.insert-btn').addEventListener('click', ()=>{
+      makeRow('', '', '', '', '', '', false, tr.nextSibling);
+      updateProgress();
+      scheduleSave();
+    });
+    return tr;
   }
 
   function escapeHtml(str){
